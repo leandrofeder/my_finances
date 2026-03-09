@@ -16,11 +16,33 @@
   --green:#22C55E; --amber:#F59E0B; --red:#EF4444; --violet:#8B5CF6;
   --text:#E2EAF6; --sub:#7A93B8; --muted:#3D5270;
   --font:'Sora',sans-serif; --mono:'DM Mono',monospace;
+  --cs:dark;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+  --ar-bg:#0B1826;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+html.light {
+  --bg:#F0F4FA; --surface:#FFFFFF; --surface2:#F5F7FC;
+  --border:#DDE3EE; --border2:#C8D2E3;
+  --accent:#0EA5E9; --accent-d:rgba(14,165,233,.10);
+  --green:#16A34A; --amber:#D97706; --red:#DC2626; --violet:#7C3AED;
+  --text:#0F172A; --sub:#4B6280; --muted:#94A3B8;
+  --cs:light;
+  --shadow:0 1px 4px rgba(0,0,0,.08);
+  --ar-bg:#F8FBFF;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;transition:background .2s,color .2s}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* THEME TOGGLE */
+.theme-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .15s;flex-shrink:0;color:var(--sub)}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-d)}
+.theme-btn svg{width:16px;height:16px}
+.theme-btn .icon-moon{display:block}
+.theme-btn .icon-sun{display:none}
+html.light .theme-btn .icon-moon{display:none}
+html.light .theme-btn .icon-sun{display:block}
 
 /* LAYOUT */
 #app{display:flex;flex-direction:column;height:100vh}
@@ -40,7 +62,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .drb-label{color:var(--muted);font-size:11px;white-space:nowrap}
 .date-wrap{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 9px}
 .date-wrap svg{width:12px;height:12px;color:var(--muted);flex-shrink:0}
-.date-wrap input[type=date]{background:none;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;color-scheme:dark;width:110px}
+.date-wrap input[type=date]{background:none;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;color-scheme:var(--cs);width:110px}
 .drb-sep{color:var(--muted);font-size:11px}
 .shortcuts{display:flex;gap:3px;flex-wrap:wrap}
 .mpill{padding:3px 9px;border-radius:5px;border:none;cursor:pointer;font-family:var(--font);font-size:10px;font-weight:600;letter-spacing:.03em;transition:all .15s}
@@ -105,7 +127,7 @@ tbody td{padding:9px 14px;font-size:13px;vertical-align:middle}
 .cbadge{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-d);border:1px solid rgba(14,165,233,.3);padding:2px 5px;border-radius:4px}
 .peditor{display:none;align-items:center;gap:6px}
 .peditor.vis{display:flex}
-.piwrap{display:flex;align-items:center;gap:6px;background:#080C17;border:1px solid var(--accent);border-radius:8px;padding:5px 10px}
+.piwrap{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:5px 10px}
 .piwrap span{color:var(--muted);font-size:13px}
 .piwrap input{background:none;border:none;outline:none;color:var(--text);font-size:14px;font-weight:700;font-family:var(--mono);width:80px}
 input[type=number]::-webkit-inner-spin-button,
@@ -174,14 +196,14 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 .ssec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;max-width:480px}
 .stit{font-size:14px;font-weight:600;margin-bottom:4px}
 .sdesc{font-size:12px;color:var(--muted);margin-bottom:14px}
-.pi{display:flex;align-items:center;gap:8px;background:#080C17;border:1px solid var(--border);border-radius:9px;padding:10px 14px;flex:1}
+.pi{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;flex:1}
 .pi span{color:var(--muted);font-size:14px}
 .pi input{background:none;border:none;outline:none;color:var(--text);font-size:18px;font-weight:700;font-family:var(--mono);width:100%}
 .bsave{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:10px 18px;cursor:pointer;font-family:var(--font);font-weight:700;font-size:13px;transition:background .15s}
 .bsave:hover{background:#0284C7}
 .cpr{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
 .cpr:last-child{border-bottom:none}
-.dz{background:#0A0808;border:1px solid #2A1010}
+.dz{background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.15)}
 .bdanger{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:8px 16px;cursor:pointer;font-family:var(--font);font-size:13px}
 .bdanger:hover{background:rgba(239,68,68,.22)}
 
@@ -260,6 +282,10 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
     </div>
 
     <div class="hsp"></div>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar tema">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
     <button class="btn-import" onclick="document.getElementById('fi').click()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Importar TXT
@@ -292,6 +318,20 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 /* STATE */
 let S = { files:[], prices:{default:200,patients:{}}, dateFrom:null, dateTo:null, tab:'dashboard', search:'', hiddenPatients:[] };
 let chart = null;
+
+/* THEME */
+function applyTheme(t){
+  document.documentElement.classList.toggle('light',t==='light');
+  try{localStorage.setItem('ah_theme',''+t);}catch(e){}
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  applyTheme(isLight?'dark':'light');
+  if(chart){chart.destroy();chart=null;setupChart();}
+}
+(function(){
+  try{const t=localStorage.getItem('ah_theme');if(t)applyTheme(t);}catch(e){}
+})();
 
 /* STORAGE */
 function load() {
@@ -629,16 +669,23 @@ function renderDash(){
 function setupChart(){
   const c=document.getElementById('myChart'); if(!c) return;
   const cd=chartD(filtA());
+  const isLight=document.documentElement.classList.contains('light');
+  const tickCol=isLight?'#94A3B8':'#3D5270';
+  const gridCol=isLight?'#E2E8F0':'#1C2537';
+  const tooltipBg=isLight?'#FFFFFF':'#0D1120';
+  const tooltipBorder=isLight?'#DDE3EE':'#1C2537';
+  const tooltipTitle=isLight?'#4B6280':'#7A93B8';
+  const tooltipBody=isLight?'#0F172A':'#E2EAF6';
   chart=new Chart(c.getContext('2d'),{type:'bar',data:{
     labels:cd.map(d=>fDate(d.date).slice(0,5)),
     datasets:[
-      {label:'Atendimentos',data:cd.map(d=>d.at),backgroundColor:'rgba(14,165,233,.7)',borderRadius:4},
+      {label:'Presenças',data:cd.map(d=>d.at),backgroundColor:'rgba(14,165,233,.7)',borderRadius:4},
       {label:'Ausências',data:cd.map(d=>d.ab),backgroundColor:'rgba(245,158,11,.7)',borderRadius:4},
     ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#7A93B8',font:{family:'Sora',size:11},boxWidth:10}},
-             tooltip:{backgroundColor:'#0D1120',borderColor:'#1C2537',borderWidth:1,titleColor:'#7A93B8',bodyColor:'#E2EAF6',titleFont:{family:'Sora'},bodyFont:{family:'Sora'}}},
-    scales:{x:{ticks:{color:'#3D5270',font:{family:'DM Mono',size:11}},grid:{color:'#1C2537'}},
-            y:{ticks:{color:'#3D5270',font:{family:'DM Mono',size:11}},grid:{color:'#1C2537'},beginAtZero:true}}}});
+    plugins:{legend:{labels:{color:tickCol,font:{family:'Sora',size:11},boxWidth:10}},
+             tooltip:{backgroundColor:tooltipBg,borderColor:tooltipBorder,borderWidth:1,titleColor:tooltipTitle,bodyColor:tooltipBody,titleFont:{family:'Sora'},bodyFont:{family:'Sora'}}},
+    scales:{x:{ticks:{color:tickCol,font:{family:'DM Mono',size:11}},grid:{color:gridCol}},
+            y:{ticks:{color:tickCol,font:{family:'DM Mono',size:11}},grid:{color:gridCol},beginAtZero:true}}}});
 }
 
 /* PATIENTS */
@@ -842,7 +889,7 @@ function wBlock(f){
     const at=da.filter(a=>a.type==='appointment'&&(a.status==='F'||a.status==null));
     const ab=da.filter(a=>a.type==='appointment'&&(a.status==='NF'||a.status==='FJ'));
     const rows=da.map(a=>{
-      const sty={appointment:'background:#0B1826;border-color:var(--border)',absent:'background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.2)',lunch:'background:rgba(107,114,128,.08);border-color:var(--border)'}[a.type]||'';
+      const sty={appointment:`background:var(--ar-bg);border-color:var(--border)`,absent:'background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.2)',lunch:'background:rgba(107,114,128,.08);border-color:var(--border)'}[a.type]||'';
       const cleanPName=stripSt(a.patientName);
       const displayStatus=a.status||(()=>{const sm=(a.patientName||'').match(/^\((F|NF|FJ)\)/i);return sm?sm[1].toUpperCase():null;})();
       const isBillable=a.type==='appointment'&&(displayStatus==='F'||displayStatus==null);
