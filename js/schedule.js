@@ -63,13 +63,15 @@ function wBlock(f, dedupedIds) {
     const bill = hasS ? p.sessions.filter(a => a.status === 'F') : p.sessions;
     wRev += bill.length * (S.prices.patients[k] ?? S.prices.default);
   }
-
   const validDays = f.days.filter(d => d.date);
   const firstDay  = validDays[0]?.date;
   const lastDay   = validDays[validDays.length - 1]?.date;
-  const weekLabel = firstDay && lastDay
-    ? `${fDate(firstDay).slice(0, 5)} à ${fDate(lastDay).slice(0, 5)}`
-    : f.fileDate ? fDate(f.fileDate) : f.filename;
+  // Prioriza intervalo do nome do arquivo; fallback nos dados reais
+  const wStart = f.fileDate    || firstDay;
+  const wEnd   = f.fileEndDate || lastDay;
+  const weekLabel = wStart && wEnd && wStart !== wEnd
+    ? `${fDate(wStart).slice(0, 5)} → ${fDate(wEnd)}`
+    : wStart ? fDate(wStart) : f.filename;
 
   const body = f.days.map(day => {
     const da = fileAppts.filter(a => a.date === day.date && a.type !== 'blocked');

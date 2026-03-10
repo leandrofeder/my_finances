@@ -1,7 +1,14 @@
 /* IMPORTAÇÃO DE ARQUIVOS */
 
+// Input: relatórios semanais (.csv / .txt)
 document.getElementById('fi').addEventListener('change', async function () {
   await handleF(this.files);
+  this.value = '';
+});
+
+// Input: histórico consolidado
+document.getElementById('fi-history').addEventListener('change', async function () {
+  if (this.files.length) await importHistory(this.files[0]);
   this.value = '';
 });
 
@@ -10,19 +17,30 @@ async function handleF(fl) {
   const skipped  = [];
 
   for (const f of Array.from(fl)) {
-    if (!f.name.endsWith('.txt')) continue;
-    const t = await f.text();
-    const p = parse(t, f.name);
+    const name = f.name.toLowerCase();
+    if (!name.endsWith('.txt') && !name.endsWith('.csv')) continue;
+
+    const text = await f.text();
+
+    // Se for o histórico consolidado, redireciona
+    if (name.endsWith('.csv') && text.trimStart().startsWith('##AGENDAHUB_HISTORY_V1')) {
+      await importHistory(f);
+      continue;
+    }
+
+    const p = parse(text, f.name);
 
     // Duplicata por nome
     const byName = S.files.findIndex(x => x.filename === p.filename);
-    if (byName >= 0) { S.files[byName] = p; continue; }
-
-    // Duplicata por semana
+    if (byName >= 0) { S.files[byName] = p; continue; }    // Duplicata por semana (fileDate / fileEndDate — intervalo da semana)
     if (p.fileDate) {
       const byDate = S.files.findIndex(x => x.fileDate === p.fileDate);
       if (byDate >= 0) {
-        skipped.push(`${p.filename} (semana ${fDate(p.fileDate)} já importada como "${S.files[byDate].filename}")`);
+        const ex = S.files[byDate];
+        const label = (p.fileDate && p.fileEndDate && p.fileDate !== p.fileEndDate)
+          ? `${fDate(p.fileDate)} → ${fDate(p.fileEndDate)}`
+          : fDate(p.fileDate);
+        skipped.push(`${p.filename} (semana ${label} já importada como "${ex.filename}")`);
         continue;
       }
     }
@@ -32,7 +50,12 @@ async function handleF(fl) {
   S.files.push(...newFiles);
   S.files.sort((a, b) => (a.fileDate || '').localeCompare(b.fileDate || ''));
 
-  if (skipped.length) alert('Arquivos ignorados (semana duplicada):\n' + skipped.join('\n'));
+  if (skipped.length) showList(
+    'Arquivos ignorados',
+    'Os seguintes arquivos não foram importados pois a semana já existe:',
+    skipped,
+    'warning'
+  );
 
   if (!S.dateFrom && !S.dateTo) {
     const ms = months();
@@ -44,10 +67,17 @@ async function handleF(fl) {
     }
   }
 
-  saveF();
-  renderDRB();
-  renderSBFiles();
-  renderMain();
+  if (newFiles.length || skipped.length === 0) {
+    saveF();
+    renderDRB();
+    renderSBFiles();
+    renderMain();
+  } else {
+    saveF();
+    renderDRB();
+    renderSBFiles();
+    renderMain();
+  }
 }
 
 function delFile(fn) {

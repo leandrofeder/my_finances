@@ -14,15 +14,28 @@ function renderSBFiles() {
   if (!el) return;
   if (!S.files.length) { el.innerHTML = ''; return; }
 
-  const open = el.dataset.open === '1';
-  const listHtml = S.files.map(f => `
-    <div class="fentry">
+  const open = el.dataset.open === '1';  const listHtml = S.files.map(f => {
+    // Label: "23/02 → 27/02/2026" se tiver intervalo; ou só a data de início; ou nome truncado
+    let label;
+    if (f.fileDate && f.fileEndDate && f.fileDate !== f.fileEndDate) {
+      const s = new Date(f.fileDate    + 'T12:00');
+      const e = new Date(f.fileEndDate + 'T12:00');
+      const fmt = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      label = `${fmt(s)} → ${fmt(e)}`;
+    } else if (f.fileDate) {
+      label = fDate(f.fileDate);
+    } else {
+      label = f.filename.slice(0, 16);
+    }
+    return `
+    <div class="fentry" title="${esc(f.filename)}">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <span>${f.fileDate ? fDate(f.fileDate) : f.filename.slice(0, 16)}</span>
+      <span>${label}</span>
       <button class="fdel" onclick="delFile('${ea(f.filename)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   el.innerHTML = `
     <button class="sb-files-tog" onclick="toggleSBFiles()">

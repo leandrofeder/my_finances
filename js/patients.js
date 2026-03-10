@@ -213,8 +213,13 @@ function doSearch(v) {
   if (i) { i.focus(); i.selectionStart = i.selectionEnd = v.length; }
 }
 
-function hidePat(key) {
-  if (!confirm('Remover este paciente da lista? Ele pode ser restaurado em Configurações.')) return;
+async function hidePat(key) {
+  const ok = await showConfirm(
+    'Remover paciente',
+    'Remover este paciente da lista? Ele pode ser restaurado em Configurações.',
+    { confirmLabel: 'Remover', confirmStyle: 'danger', type: 'warning' }
+  );
+  if (!ok) return;
   if (!S.hiddenPatients) S.hiddenPatients = [];
   if (!S.hiddenPatients.includes(key)) S.hiddenPatients.push(key);
   saveH();

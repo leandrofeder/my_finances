@@ -5,13 +5,41 @@ function renderSettings() {
   const pl      = patList(allA());
   const allPats = patMap(allA());
   const hidden  = (S.hiddenPatients || []).map(k => {
+
     const p = allPats.get(k);
     return p ? { key: k, name: p.name } : { key: k, name: k };
   });
+  const totalAppts = allA().filter(a => a.type === 'appointment').length;
+  const totalFiles = S.files.length;
 
   return `
     <div class="pt" style="margin-bottom:20px">Configurações</div>
 
+    <!-- ── HISTÓRICO ── -->
+    <div class="ssec">
+      <div class="stit">Histórico consolidado</div>
+      <div class="sdesc">
+        Exporte todos os atendimentos e preços em um único CSV. Use-o para backup ou para restaurar tudo de uma vez.
+        O arquivo exportado pode ser reimportado junto com (ou no lugar de) relatórios semanais.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="bsave" onclick="exportHistory()" ${!totalAppts ? 'disabled title="Nenhum dado para exportar"' : ''}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar histórico (.csv)
+        </button>
+        <button class="bsave" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2)" onclick="document.getElementById('fi-history').click()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar histórico (.csv)
+        </button>
+        ${totalAppts ? `<span style="font-size:11px;color:var(--muted)">${totalAppts} atendimento(s) em ${totalFiles} arquivo(s)</span>` : ''}
+      </div>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.7">
+        <strong style="color:var(--sub)">Relatório semanal</strong> — CSV exportado por semana (formato <code>agenda_2-3_a_6-3.csv</code>)<br>
+        <strong style="color:var(--sub)">Histórico consolidado</strong> — CSV gerado por esta plataforma com todos os dados unificados
+      </div>
+    </div>
+
+    <!-- ── VALOR PADRÃO ── -->
     <div class="ssec">
       <div class="stit">Valor padrão por sessão</div>
       <div class="sdesc">Aplicado a todos os pacientes sem valor personalizado. Você pode sobrescrever individualmente na aba Pacientes.</div>
@@ -58,8 +86,13 @@ function saveDP() {
   if (!isNaN(v) && v >= 0) { S.prices.default = v; saveP(); renderMain(); }
 }
 
-function clearAll() {
-  if (!confirm('Tem certeza? Isso apagará todos os arquivos e configurações.')) return;
+async function clearAll() {
+  const ok = await showConfirm(
+    'Apagar tudo',
+    'Isso apagará todos os arquivos e configurações. Esta ação não pode ser desfeita.',
+    { confirmLabel: 'Apagar tudo', confirmStyle: 'danger', type: 'error' }
+  );
+  if (!ok) return;
   S.files = [];
   S.dateFrom = null;
   S.dateTo   = null;

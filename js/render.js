@@ -21,9 +21,8 @@ function renderEmpty() {
         <polyline points="17 8 12 3 7 8"/>
         <line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
-    </div>
-    <div class="dtit">Importe arquivos de agenda</div>
-    <div class="dsub2">Arraste arquivos .txt ou clique em "Importar TXT"</div>
+    </div>    <div class="dtit">Importe arquivos de agenda</div>
+    <div class="dsub2">Arraste arquivos .csv ou clique em "Importar CSV / TXT"</div>
     <div class="dhint">Múltiplos arquivos · Cache automático</div>
   </div></div>`;
 }
