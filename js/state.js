@@ -7,7 +7,8 @@ let S = {
   tab: 'dashboard',
   search: '',
   hiddenPatients: [],
-  patSort: { col: 'revenue', dir: 'desc' }
+  patSort: { col: 'revenue', dir: 'desc' },
+  hideValues: false
 };
 
 let chart = null;

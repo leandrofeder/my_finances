@@ -9,30 +9,42 @@
  */
 function exportHistory() {
   const allAppts = allA(); // todos os atendimentos sem filtro de data
+  // ── Pré-computa chave → preço para todos os pacientes ──
+  const pm = patMap(allAppts);
+  const priceOf = new Map();
+  for (const [k, p] of pm) {
+    priceOf.set(k, S.prices.patients[k] ?? S.prices.default);
+  }
 
   // ── Cabeçalho da seção de atendimentos ──
   const rows = [
     '##AGENDAHUB_HISTORY_V1',
-    'Data,Início,Fim,Tipo,Paciente,Matrícula,Sessão,DiaSemana,ArquivoOrigem'
+    'Data,Início,Fim,Tipo,Paciente,Matrícula,Sessão,Valor,DiaSemana,ArquivoOrigem'
   ];
 
   // ── Uma linha por atendimento ──
   for (const a of allAppts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))) {
-    if (a.type !== 'appointment') continue; // exclui ausente/almoço/bloqueio
+    if (a.type !== 'appointment') continue;
 
     const sessao = (a.sessionNumber && a.totalSessions)
       ? `${a.sessionNumber}/${a.totalSessions}`
       : '';
 
+    // Determina a chave do paciente (mesmo critério do patMap)
+    const cleanName = stripSt(a.patientName);
+    const patKey    = a.patientCode || cleanName;
+    const valor     = priceOf.get(patKey) ?? S.prices.default;
+
     rows.push([
-      csvQ(dateToDDMM(a.date)),      // Data no formato "seg 2/3"
-      csvQ(a.startTime  || ''),
-      csvQ(a.endTime    || ''),
-      csvQ(a.status     || ''),
-      csvQ(a.patientName|| ''),
-      csvQ(a.patientCode|| ''),
+      csvQ(dateToDDMM(a.date)),
+      csvQ(a.startTime   || ''),
+      csvQ(a.endTime     || ''),
+      csvQ(a.status      || ''),
+      csvQ(a.patientName || ''),
+      csvQ(a.patientCode || ''),
       csvQ(sessao),
-      csvQ(a.day        || ''),
+      csvQ(valor.toFixed(2)),
+      csvQ(a.day         || ''),
       csvQ(findOriginFile(a))
     ].join(','));
   }
@@ -85,12 +97,15 @@ async function importHistory(file) {
 
   // ── Reconstrói appointments agrupados por arquivo de origem ──
   const byFile = new Map();
-
   // pula cabeçalho
   for (const line of apptLines.slice(1)) {
     const cols = parseCSVLine(line);
     if (cols.length < 9) continue;
-    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao, rawDia, rawOrigem] = cols.map(c => c.trim());
+    // Suporta formato antigo (9 cols) e novo com Valor (10 cols)
+    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao, col8, col9, col10] = cols.map(c => c.trim());
+    const hasValor  = cols.length >= 10;
+    const rawDia    = hasValor ? col9  : col8;
+    const rawOrigem = hasValor ? col10 : col9;
     if (!rawPaciente) continue;
 
     // reconstrói data YYYY-MM-DD a partir de "seg 2/3" + ano do arquivo de origem

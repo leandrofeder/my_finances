@@ -5,10 +5,10 @@ function renderMain() {
   if (chart) { chart.destroy(); chart = null; }
 
   if (!S.files.length) { main.innerHTML = renderEmpty(); setupDZ(); return; }
-
-  if      (S.tab === 'dashboard') { main.innerHTML = renderDash();     setupChart(); }
-  else if (S.tab === 'patients')  { main.innerHTML = renderPatients(); setupPE();   }
+  if      (S.tab === 'dashboard') { main.innerHTML = renderDash();        setupChart(); }
+  else if (S.tab === 'patients')  { main.innerHTML = renderPatients();    setupPE();   }
   else if (S.tab === 'schedule')    main.innerHTML = renderSched();
+  else if (S.tab === 'insights')    main.innerHTML = renderInsightsTab();
   else if (S.tab === 'settings')    main.innerHTML = renderSettings();
 }
 

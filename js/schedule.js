@@ -111,7 +111,7 @@ function wBlock(f, dedupedIds) {
         <div class="aname ${nameCls}" style="${a.type !== 'appointment' ? 'color:var(--muted)' : 'font-weight:500'}">${label}</div>
         ${statusTag}
         ${a.sessionNumber && a.totalSessions ? `<div class="asess">${a.sessionNumber}/${a.totalSessions}</div>` : ''}
-        ${price !== null ? `<div class="aprice">${fBRL(price)}</div>` : ''}
+        ${price !== null ? `<div class="aprice">${moneyEl(price)}</div>` : ''}
       </div>`;
     }).join('');
 
@@ -128,7 +128,7 @@ function wBlock(f, dedupedIds) {
       <div>
         <div class="wt">Semana de ${weekLabel}</div>
         <div class="wsub" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">
-          <span style="color:var(--green);font-weight:700;font-family:var(--mono);font-size:12px">${fBRL(wRev)}</span>
+          <span style="color:var(--green);font-weight:700;font-family:var(--mono);font-size:12px">${moneyEl(wRev)}</span>
           <span style="color:var(--border2)">·</span>
           ${wPresF > 0 ? `<span class="pa-badge pa-p">✓ ${wPresF}</span>` : ''}
           ${wNF    > 0 ? `<span class="pa-badge pa-a">✗ ${wNF}</span>`    : ''}

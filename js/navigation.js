@@ -2,7 +2,7 @@
 
 function setTab(tab) {
   S.tab = tab;
-  ['dashboard', 'patients', 'schedule', 'settings'].forEach(t => {
+  ['dashboard', 'patients', 'schedule', 'insights', 'settings'].forEach(t => {
     const el = document.getElementById('nav-' + t);
     if (el) el.className = 'nav-item' + (t === tab ? ' on' : '');
   });

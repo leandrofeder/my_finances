@@ -51,9 +51,8 @@ function renderPatients() {
            <div class="pw"><div class="pb" style="width:${Math.min(100, p.curSession / p.totalSess * 100)}%"></div></div>`
         : '<span style="color:var(--border)">—</span>'}</td>
       <td>
-        <div class="pcell">
-          <div class="pdisplay" id="pd_${safeKey}" onclick="showPE('${safeKey}')">
-            <span class="amt">${fBRL(p.price)}</span>
+        <div class="pcell">          <div class="pdisplay" id="pd_${safeKey}" onclick="showPE('${safeKey}')">
+            <span class="amt">${moneyEl(p.price)}</span>
             ${hc ? '<span class="cbadge">custom</span>' : ''}
             <span class="ehint">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -73,7 +72,7 @@ function renderPatients() {
           </div>
         </div>
       </td>
-      <td style="font-weight:700;font-family:var(--mono);color:var(--green)">${fBRL(p.revenue)}</td>
+      <td style="font-weight:700;font-family:var(--mono);color:var(--green)">${moneyEl(p.revenue)}</td>
       <td style="color:var(--muted);font-size:12px">${p.lastDate ? fDate(p.lastDate) : '—'}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
@@ -117,7 +116,7 @@ function renderPatients() {
       </div>
     </div>
     <div class="revs">
-      <div class="ri"><div class="rl">Faturamento (somente presenças)</div><div class="rv" style="color:var(--green)">${fBRL(st.revenue)}</div></div>
+      <div class="ri"><div class="rl">Faturamento (somente presenças)</div><div class="rv" style="color:var(--green)">${moneyEl(st.revenue)}</div></div>
       <div class="rdiv"></div>
       <div class="ri"><div class="rl">Pacientes</div><div class="rv">${st.patients}</div></div>
       <div class="rdiv"></div>
@@ -125,7 +124,7 @@ function renderPatients() {
       <div class="rdiv"></div>
       <div class="ri"><div class="rl">Ausências</div><div class="rv" style="color:#F59E0B">${st.absent}</div></div>
       <div class="rsp"></div>
-      <div style="font-size:11px;color:var(--muted)">Padrão: <strong style="color:var(--green)">${fBRL(S.prices.default)}</strong>
+      <div style="font-size:11px;color:var(--muted)">Padrão: <strong style="color:var(--green)">${moneyEl(S.prices.default)}</strong>
         <button onclick="setTab('settings')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;margin-left:4px;font-family:var(--font)">alterar</button>
       </div>
     </div>

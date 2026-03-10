@@ -114,12 +114,75 @@ function stats(appts) {
 
 function chartD(appts) {
   const by = {};
+  const anyHasStatus = appts.some(a => a.type === 'appointment' && a.status != null);
   appts.forEach(a => {
-    if (!a.date) return;
-    if (!by[a.date]) by[a.date] = { date: a.date, at: 0, ab: 0, bl: 0 };
-    if (a.type === 'appointment') by[a.date].at++;
-    if (a.type === 'absent')      by[a.date].ab++;
-    if (a.type === 'blocked')     by[a.date].bl++;
+    if (!a.date || a.type !== 'appointment') return;
+    if (!by[a.date]) by[a.date] = { date: a.date, at: 0, ab: 0 };
+    if (anyHasStatus) {
+      if (a.status === 'F')                        by[a.date].at++;
+      if (a.status === 'NF' || a.status === 'FJ')  by[a.date].ab++;
+    } else {
+      by[a.date].at++;
+    }
   });
   return Object.values(by).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/* ─── INSIGHTS ─── */
+
+/** Pacientes que mais cancelam (NF + FJ), ordenado por total desc */
+function insightCancelsByPatient(appts) {
+  const pm = patMap(appts);
+  return [...pm.values()]
+    .map(p => ({
+      key:   p.key,
+      name:  p.name,
+      nf:    p.sessions.filter(a => a.status === 'NF').length,
+      fj:    p.sessions.filter(a => a.status === 'FJ').length,
+      total: p.sessions.filter(a => a.status === 'NF' || a.status === 'FJ').length,
+      pres:  p.sessions.filter(a => a.status === 'F').length,
+    }))
+    .filter(p => p.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+/** Cancelamentos por dia da semana */
+function insightCancelsByWeekday(appts) {
+  const labels = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const counts = { att: Array(7).fill(0), cancel: Array(7).fill(0) };
+  appts.filter(a => a.type === 'appointment' && a.date).forEach(a => {
+    const dow = new Date(a.date + 'T12:00').getDay();
+    if (a.status === 'NF' || a.status === 'FJ') counts.cancel[dow]++;
+    else counts.att[dow]++;
+  });
+  return labels.map((l, i) => ({ label: l, att: counts.att[i], cancel: counts.cancel[i] }))
+    .filter(d => d.att + d.cancel > 0);
+}
+
+/** Atendimentos por dia da semana (volume) */
+function insightAttByWeekday(appts) {
+  const labels = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const counts = Array(7).fill(0);
+  appts.filter(a => a.type === 'appointment' && a.date && a.status !== 'NF' && a.status !== 'FJ').forEach(a => {
+    counts[new Date(a.date + 'T12:00').getDay()]++;
+  });
+  return labels.map((l, i) => ({ label: l, count: counts[i] })).filter(d => d.count > 0);
+}
+
+/** Atendimentos e cancelamentos por período do dia */
+function insightByPeriod(appts) {
+  const periods = [
+    { key: 'manha',  label: 'Manhã',   start:  6, end: 12 },
+    { key: 'tarde',  label: 'Tarde',   start: 12, end: 18 },
+    { key: 'noite',  label: 'Noite',   start: 18, end: 24 },
+  ];
+  const counts = periods.map(p => ({ ...p, att: 0, cancel: 0 }));
+  appts.filter(a => a.type === 'appointment' && a.startTime).forEach(a => {
+    const h = parseInt(a.startTime.split(':')[0]);
+    const p = counts.find(p => h >= p.start && h < p.end);
+    if (!p) return;
+    if (a.status === 'NF' || a.status === 'FJ') p.cancel++;
+    else p.att++;
+  });
+  return counts.filter(p => p.att + p.cancel > 0);
 }
