@@ -239,6 +239,13 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 .pa-a{background:rgba(239,68,68,.1);color:#EF4444}
 .pa-fj{background:rgba(245,158,11,.1);color:#F59E0B}
 
+/* SORTABLE HEADERS */
+thead th.sortable{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+thead th.sortable:hover{color:var(--accent)}
+thead th.sortable.sorted{color:var(--accent)}
+thead th.sortable .sort-icon{display:inline-block;margin-left:4px;opacity:.4;font-style:normal;font-size:9px;vertical-align:middle}
+thead th.sortable.sorted .sort-icon{opacity:1}
+
 /* MONTH DIVIDER IN SCHEDULE */
 .month-div{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
 .month-div-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);white-space:nowrap}
@@ -339,7 +346,7 @@ select.msel:focus{border-color:var(--accent)}
 
 <script>
 /* STATE */
-let S = { files:[], prices:{default:200,patients:{}}, dateFrom:null, dateTo:null, tab:'dashboard', search:'', hiddenPatients:[] };
+let S = { files:[], prices:{default:200,patients:{}}, dateFrom:null, dateTo:null, tab:'dashboard', search:'', hiddenPatients:[], patSort:{col:'revenue',dir:'desc'} };
 let chart = null;
 
 /* THEME */
@@ -479,6 +486,22 @@ function patMap(appts){
     if(!m.has(k)) m.set(k,{key:k,name:cleanName,code:a.patientCode,sessions:[]});
     m.get(k).sessions.push({...a,patientName:cleanName,status});
   });
+  // Merge name-keyed entries that have an embedded code matching a code-keyed entry
+  // e.g. key="Enrico Duarte de Oliveira 00265555065322003" → merge into key="00265555065322003"
+  for(const [k,p] of [...m.entries()]){
+    if(p.code) continue; // already code-keyed, skip
+    const nm=k.match(/^(.+?)\s+(\d{10,})\s*$/);
+    if(!nm) continue;
+    const embCode=nm[2], embName=nm[1].trim();
+    const target=m.has(embCode)?m.get(embCode):null;
+    if(target){
+      // Merge sessions into the code-keyed entry, fixing name if needed
+      const fixedSessions=p.sessions.map(s=>({...s,patientName:embName||target.name}));
+      target.sessions.push(...fixedSessions);
+      if(!target.name||target.name===embCode) target.name=embName;
+      m.delete(k);
+    }
+  }
   return m;
 }
 function patList(appts){
@@ -773,10 +796,32 @@ function setupChart(){
 }
 
 /* PATIENTS */
+function sortPatients(col){
+  if(!S.patSort) S.patSort={col:'revenue',dir:'desc'};
+  if(S.patSort.col===col) S.patSort.dir=S.patSort.dir==='asc'?'desc':'asc';
+  else{S.patSort.col=col;S.patSort.dir='desc';}
+  renderMain();
+}
 function renderPatients(){
+  if(!S.patSort) S.patSort={col:'revenue',dir:'desc'};
   const ap=filtA(), st=stats(ap), pl=patList(ap);
   const q=S.search.toLowerCase();
-  const vis=q?pl.filter(p=>p.name.toLowerCase().includes(q)||(p.code||'').includes(q)):pl;
+  let vis=q?pl.filter(p=>p.name.toLowerCase().includes(q)||(p.code||'').includes(q)):pl;
+  // Apply sort
+  const {col,dir}=S.patSort;
+  const mult=dir==='asc'?1:-1;
+  vis=[...vis].sort((a,b)=>{
+    let av,bv;
+    if(col==='name'){av=a.name.toLowerCase();bv=b.name.toLowerCase();return mult*(av<bv?-1:av>bv?1:0);}
+    if(col==='presences'){av=a.presF-a.absNF-a.absFJ;bv=b.presF-b.absNF-b.absFJ;} // sort by presF mostly
+    else if(col==='presF'){av=a.presF;bv=b.presF;}
+    else if(col==='progress'){av=a.curSession||0;bv=b.curSession||0;}
+    else if(col==='price'){av=a.price;bv=b.price;}
+    else if(col==='revenue'){av=a.revenue;bv=b.revenue;}
+    else if(col==='lastDate'){av=a.lastDate||'';bv=b.lastDate||'';return mult*(av<bv?-1:av>bv?1:0);}
+    else{av=a.count;bv=b.count;}
+    return mult*(av-bv);
+  });
   const rows=vis.map(p=>{
     const hc=!!S.prices.patients[p.key];
     const safeKey=ea(p.key);
@@ -878,7 +923,21 @@ function renderPatients(){
       <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-fj">⚡ N</span> Falta justificada (FJ)</div>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Paciente</th><th>Presenças / Faltas</th><th>Progresso</th><th>Valor / Sessão</th><th>Faturamento</th><th>Última sessão</th><th></th></tr></thead>
+      <thead><tr>
+        ${[
+          ['name','Paciente'],
+          ['presF','Presenças / Faltas'],
+          ['progress','Progresso'],
+          ['price','Valor / Sessão'],
+          ['revenue','Faturamento'],
+          ['lastDate','Última sessão'],
+        ].map(([c,l])=>{
+          const active=S.patSort.col===c;
+          const icon=active?(S.patSort.dir==='asc'?'▲':'▼'):'⇅';
+          return`<th class="sortable${active?' sorted':''}" onclick="sortPatients('${c}')">${l} <i class="sort-icon">${icon}</i></th>`;
+        }).join('')}
+        <th></th>
+      </tr></thead>
       <tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:28px">Nenhum paciente encontrado</td></tr>'}</tbody>
     </table></div>`;
 }
@@ -956,10 +1015,10 @@ function renderSched(){
     return true;
   }));
 
-  // Group files by month of their fileDate (or first appointment date)
+  // Group files by month of their first actual week day (not filename date)
   const byMonth=new Map();
   for(const f of vis){
-    const anchor=f.fileDate||f.days[0]?.date||'';
+    const anchor=f.days[0]?.date||f.fileDate||'';
     const mo=anchor.slice(0,7); // YYYY-MM
     if(!byMonth.has(mo)) byMonth.set(mo,[]);
     byMonth.get(mo).push(f);
