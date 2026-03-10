@@ -1,6 +1,10 @@
 /* PARSER DE ARQUIVOS */
 const DN = { seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta', sex: 'Sexta', sab: 'Sábado', dom: 'Domingo' };
 
+/* Nomes/padrões que devem ser ignorados (não são pacientes) */
+const NON_PATIENT = /^(ausente|bloqueio de agenda|almo[çc]o|natal|ano novo|feriado|recesso|folga|férias|ferias)$/i;
+function isNonPatient(name) { return !name || NON_PATIENT.test(name.trim()); }
+
 /* ─── Utilitário: parse CSV linha a linha (respeita aspas) ─── */
 function parseCSVLine(line) {
   const result = [];
@@ -76,11 +80,8 @@ function parseCSV(content, filename) {
     const cols = parseCSVLine(line);
     if (cols.length < 5) continue;
 
-    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao] = cols.map(c => c.trim());
-
-    // Ignora "Ausente" e "Bloqueio de agenda"
-    if (/^ausente$/i.test(rawPaciente) || /^bloqueio de agenda$/i.test(rawPaciente)) continue;
-    if (!rawPaciente) continue;
+    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao] = cols.map(c => c.trim());    // Ignora entradas que não são pacientes (Ausente, Bloqueio, Natal, Ano Novo…)
+    if (isNonPatient(rawPaciente)) continue;
 
     const dayInfo = parseDayCell(rawData, year);
     if (!dayInfo) continue;
@@ -164,15 +165,13 @@ function parseTXT(content, filename) {
     const d = days[di]; if (!d) return;
     const bl = block.filter(l => l); let i = 0;
     while (i < bl.length) {
-      const ln = bl[i];
-      if (/^bloqueio de agenda$/i.test(ln)) { i++; continue; }
+      const ln = bl[i];      if (isNonPatient(ln)) { i++; continue; }
       const tm = ln.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
       if (tm) {
         const [, st, et] = tm; i++;
         if (i >= bl.length) break;
         const c = bl[i];
-        if (/^ausente$/i.test(c) || /^bloqueio de agenda$/i.test(c)) { i++; continue; }
-        if (/^almo[çc]o$/i.test(c)) { i++; continue; }
+        if (isNonPatient(c)) { i++; continue; }
         const cm = c.match(/^(.+?)\s*-\s*(\d{10,})\s*(?:\((\d+)\/(\d+)\))?$/);
         let rawName = cm ? cm[1].trim() : c;
         let appStatus = null;
