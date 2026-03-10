@@ -239,8 +239,27 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 .pa-a{background:rgba(239,68,68,.1);color:#EF4444}
 .pa-fj{background:rgba(245,158,11,.1);color:#F59E0B}
 
-/* EMPTY */
-.empty{display:flex;align-items:center;justify-content:center;min-height:65vh}
+/* MONTH DIVIDER IN SCHEDULE */
+.month-div{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
+.month-div-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);white-space:nowrap}
+.month-div-line{flex:1;height:1px;background:var(--border)}
+
+/* SIDEBAR FILES COLLAPSIBLE */
+.sb-files-tog{display:flex;align-items:center;gap:7px;width:100%;background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;cursor:pointer;color:var(--sub);font-family:var(--font);font-size:11px;font-weight:600;transition:all .15s;margin-top:8px}
+.sb-files-tog:hover{border-color:var(--accent);color:var(--accent)}
+.sb-files-tog .sb-count{background:var(--accent-d);color:var(--accent);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700}
+.sb-files-tog .sb-chev{margin-left:auto;transition:transform .2s}
+.sb-files-tog .sb-chev.op{transform:rotate(180deg)}
+.sb-files-list{overflow:hidden;transition:max-height .25s ease}
+
+/* MONTH SELECT */
+.month-select-wrap{position:relative;display:flex;align-items:center}
+.month-select-wrap svg{position:absolute;left:8px;width:11px;height:11px;color:var(--muted);pointer-events:none}
+select.msel{appearance:none;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font);font-size:11px;font-weight:600;padding:4px 28px 4px 24px;cursor:pointer;outline:none;transition:all .15s}
+select.msel:hover{border-color:var(--accent)}
+select.msel:focus{border-color:var(--accent)}
+.msel-arrow{position:absolute;right:7px;pointer-events:none;color:var(--muted)}
+.msel-arrow svg{width:10px;height:10px}
 .dz2{border:2px dashed var(--border2);border-radius:16px;padding:56px 80px;cursor:pointer;transition:all .2s;text-align:center}
 .dz2:hover,.dz2.drag{border-color:var(--accent);background:rgba(14,165,233,.04)}
 .di svg{width:44px;height:44px}
@@ -277,7 +296,11 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <input type="date" id="dateTo" onchange="onRangeChange()">
       </div>
-      <div class="shortcuts" id="shortcuts"></div>
+      <div class="month-select-wrap" id="monthSelWrap" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <select class="msel" id="monthSel" onchange="onMonthSel(this.value)"></select>
+        <div class="msel-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+      </div>
       <button class="btn-clr" id="btnClr" onclick="clearRange()" style="display:none">✕ limpar</button>
     </div>
 
@@ -531,15 +554,30 @@ function renderDRB(){
   const fe=document.getElementById('dateFrom'), te=document.getElementById('dateTo');
   if(fe) fe.value=S.dateFrom||'';
   if(te) te.value=S.dateTo||'';
-  const sc=document.getElementById('shortcuts');
-  if(sc) sc.innerHTML=ms.map(m=>{
-    const isOn=S.dateFrom===mStart(m)&&S.dateTo===mEnd(m);
-    return`<button class="mpill${isOn?' on':''}" onclick="selMonth('${m}')">${fMo(m)}</button>`;
-  }).join('');
+
+  // Month select combobox
+  const sw=document.getElementById('monthSelWrap');
+  const sel=document.getElementById('monthSel');
+  if(sw&&sel){
+    if(ms.length){
+      sw.style.display='';
+      const curM=ms.find(m=>S.dateFrom===mStart(m)&&S.dateTo===mEnd(m))||'';
+      sel.innerHTML=`<option value="">Todo o período</option>`
+        +ms.map(m=>`<option value="${m}"${m===curM?' selected':''}>${fMo(m)}</option>`).join('');
+    } else {
+      sw.style.display='none';
+    }
+  }
+
   const clr=document.getElementById('btnClr');
   if(clr) clr.style.display=(S.dateFrom||S.dateTo)?'':'none';
   const bar=document.getElementById('dateRangeBar');
   if(bar) bar.style.display=ms.length?'':'none';
+}
+function onMonthSel(v){
+  if(!v){clearRange();return;}
+  S.dateFrom=mStart(v); S.dateTo=mEnd(v);
+  saveR(); renderDRB(); renderMain();
 }
 
 function onRangeChange(){
@@ -577,28 +615,56 @@ function setTab(tab){
 function renderSBFiles(){
   const el=document.getElementById('sbFiles'); if(!el) return;
   if(!S.files.length){el.innerHTML='';return;}
-  el.innerHTML=`<div class="sb-sec">Arquivos (${S.files.length})</div>`+
-    S.files.map(f=>`
-      <div class="fentry">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span>${f.fileDate?fDate(f.fileDate):f.filename.slice(0,16)}</span>
-        <button class="fdel" onclick="delFile('${ea(f.filename)}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>`).join('');
+  const open=el.dataset.open==='1';
+  const listHtml=S.files.map(f=>`
+    <div class="fentry">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>${f.fileDate?fDate(f.fileDate):f.filename.slice(0,16)}</span>
+      <button class="fdel" onclick="delFile('${ea(f.filename)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+  el.innerHTML=`
+    <button class="sb-files-tog" onclick="toggleSBFiles()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>Arquivos</span>
+      <span class="sb-count">${S.files.length}</span>
+      <span class="sb-chev${open?' op':''}">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </button>
+    <div class="sb-files-list" id="sbFilesList" style="max-height:${open?'600px':'0'}">${listHtml}</div>`;
+}
+function toggleSBFiles(){
+  const el=document.getElementById('sbFiles'); if(!el) return;
+  el.dataset.open=el.dataset.open==='1'?'0':'1';
+  renderSBFiles();
 }
 
 /* FILE HANDLING */
 document.getElementById('fi').addEventListener('change',async function(){await handleF(this.files);this.value='';});
 async function handleF(fl){
+  const newFiles=[]; const skipped=[];
   for(const f of Array.from(fl)){
     if(!f.name.endsWith('.txt')) continue;
     const t=await f.text();
     const p=parse(t,f.name);
-    const idx=S.files.findIndex(x=>x.filename===p.filename);
-    idx>=0?S.files[idx]=p:S.files.push(p);
+    // Check by filename (exact duplicate)
+    const byName=S.files.findIndex(x=>x.filename===p.filename);
+    if(byName>=0){S.files[byName]=p; continue;}
+    // Check by fileDate (same week already imported under different name)
+    if(p.fileDate){
+      const byDate=S.files.findIndex(x=>x.fileDate===p.fileDate);
+      if(byDate>=0){
+        skipped.push(`${p.filename} (semana ${fDate(p.fileDate)} já importada como "${S.files[byDate].filename}")`);
+        continue;
+      }
+    }
+    newFiles.push(p);
   }
+  S.files.push(...newFiles);
   S.files.sort((a,b)=>(a.fileDate||'').localeCompare(b.fileDate||''));
+  if(skipped.length) alert('Arquivos ignorados (semana duplicada):\n'+skipped.join('\n'));
   if(!S.dateFrom&&!S.dateTo){
     const ms=months(); if(ms.length){const m=ms[ms.length-1];S.dateFrom=mStart(m);S.dateTo=mEnd(m);saveR();}
   }
@@ -872,15 +938,13 @@ function togglePatSessions(safeKey){
 }
 
 /* SCHEDULE */
+const MONTHS_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function renderSched(){
-  // Build a deduplicated, date-filtered flat list of all appointments
-  const filtered = filtA(); // already deduped via allA()
+  const filtered = filtA();
   if(!filtered.length){
     return`<div class="ph"><div class="pt">Agenda Detalhada</div><div class="ps">${descRange()}</div></div>
       <div style="color:var(--muted);text-align:center;padding:40px;font-size:13px">Nenhum atendimento no período selecionado</div>`;
   }
-  // Group by file (keep original file grouping for display), but render only deduped appointments
-  // Build a set of deduped IDs for fast lookup
   const dedupedIds = new Set(filtered.map(a=>{
     const patId=a.type==='appointment'?(a.patientCode||stripSt(a.patientName)||''):(a.type);
     return `${a.type}|${a.date}|${a.startTime||''}|${patId}`;
@@ -891,8 +955,24 @@ function renderSched(){
     if(S.dateTo&&a.date>S.dateTo) return false;
     return true;
   }));
-  return`<div class="ph"><div class="pt">Agenda Detalhada</div><div class="ps">${descRange()}</div></div>
-    ${vis.map(f=>wBlock(f,dedupedIds)).join('')}`;
+
+  // Group files by month of their fileDate (or first appointment date)
+  const byMonth=new Map();
+  for(const f of vis){
+    const anchor=f.fileDate||f.days[0]?.date||'';
+    const mo=anchor.slice(0,7); // YYYY-MM
+    if(!byMonth.has(mo)) byMonth.set(mo,[]);
+    byMonth.get(mo).push(f);
+  }
+
+  const html=[`<div class="ph"><div class="pt">Agenda Detalhada</div><div class="ps">${descRange()}</div></div>`];
+  for(const [mo,files] of [...byMonth.entries()].sort()){
+    const [y,m]=mo.split('-');
+    const moLabel=`${MONTHS_PT[parseInt(m)-1]} ${y}`;
+    html.push(`<div class="month-div"><div class="month-div-label">${moLabel}</div><div class="month-div-line"></div></div>`);
+    html.push(...files.map(f=>wBlock(f,dedupedIds)));
+  }
+  return html.join('');
 }
 
 function wBlock(f, dedupedIds){
@@ -920,7 +1000,13 @@ function wBlock(f, dedupedIds){
     const bill=hasS?p.sessions.filter(a=>a.status==='F'):p.sessions;
     wRev+=bill.length*(S.prices.patients[k]??S.prices.default);
   }
-  const chips=f.days.map(d=>`<span class="dchip">${d.name.slice(0,3)} ${d.date.slice(8)}</span>`).join(' ');
+  // Compute week date range label
+  const validDays=f.days.filter(d=>d.date);
+  const firstDay=validDays[0]?.date;
+  const lastDay=validDays[validDays.length-1]?.date;
+  const weekLabel=firstDay&&lastDay
+    ? `${fDate(firstDay).slice(0,5)} à ${fDate(lastDay).slice(0,5)}`
+    : f.fileDate?fDate(f.fileDate):f.filename;
   const body=f.days.map(day=>{
     const da=fileAppts.filter(a=>a.date===day.date&&a.type!=='blocked'); if(!da.length) return'';
     const at=da.filter(a=>a.type==='appointment'&&(a.status==='F'||a.status==null));
@@ -961,7 +1047,7 @@ function wBlock(f, dedupedIds){
     <button class="wh" onclick="togW('${id}')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       <div>
-        <div class="wt">Semana de ${f.fileDate?fDate(f.fileDate):f.filename}</div>
+        <div class="wt">Semana de ${weekLabel}</div>
         <div class="wsub" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">
           <span style="color:var(--green);font-weight:700;font-family:var(--mono);font-size:12px">${fBRL(wRev)}</span>
           <span style="color:var(--border2)">·</span>
@@ -971,7 +1057,6 @@ function wBlock(f, dedupedIds){
         </div>
       </div>
       <div style="flex:1"></div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap">${chips}</div>
       <div class="chev" id="${id}_c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
     </button>
     <div id="${id}" style="display:none">${body}</div>
