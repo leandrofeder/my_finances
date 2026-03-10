@@ -411,7 +411,25 @@ function parse(content, filename) {
 }
 
 /* DERIVED */
-const allA=()=>S.files.flatMap(f=>f.appointments);
+function allA(){
+  // Deduplicate across files: same date + startTime + patient = same appointment
+  const seen = new Set();
+  const result = [];
+  for(const f of S.files){
+    for(const a of f.appointments){
+      // Build a dedup key: type + date + startTime + patient identifier
+      const patId = a.type==='appointment'
+        ? (a.patientCode || stripSt(a.patientName) || '')
+        : (a.type);
+      const key = `${a.type}|${a.date}|${a.startTime||''}|${patId}`;
+      if(!seen.has(key)){
+        seen.add(key);
+        result.push(a);
+      }
+    }
+  }
+  return result;
+}
 function filtA(){
   return allA().filter(a=>{
     if(!a.date) return true;
@@ -855,6 +873,18 @@ function togglePatSessions(safeKey){
 
 /* SCHEDULE */
 function renderSched(){
+  // Build a deduplicated, date-filtered flat list of all appointments
+  const filtered = filtA(); // already deduped via allA()
+  if(!filtered.length){
+    return`<div class="ph"><div class="pt">Agenda Detalhada</div><div class="ps">${descRange()}</div></div>
+      <div style="color:var(--muted);text-align:center;padding:40px;font-size:13px">Nenhum atendimento no período selecionado</div>`;
+  }
+  // Group by file (keep original file grouping for display), but render only deduped appointments
+  // Build a set of deduped IDs for fast lookup
+  const dedupedIds = new Set(filtered.map(a=>{
+    const patId=a.type==='appointment'?(a.patientCode||stripSt(a.patientName)||''):(a.type);
+    return `${a.type}|${a.date}|${a.startTime||''}|${patId}`;
+  }));
   const vis=S.files.filter(f=>f.appointments.some(a=>{
     if(!a.date) return false;
     if(S.dateFrom&&a.date<S.dateFrom) return false;
@@ -862,22 +892,29 @@ function renderSched(){
     return true;
   }));
   return`<div class="ph"><div class="pt">Agenda Detalhada</div><div class="ps">${descRange()}</div></div>
-    ${vis.length?vis.map(f=>wBlock(f)).join(''):'<div style="color:var(--muted);text-align:center;padding:40px;font-size:13px">Nenhum atendimento no período selecionado</div>'}`;
+    ${vis.map(f=>wBlock(f,dedupedIds)).join('')}`;
 }
 
-function wBlock(f){
+function wBlock(f, dedupedIds){
   const id='w_'+f.filename.replace(/[^a-z0-9]/gi,'_');
+  // Filter this file's appointments to only deduped ones (if dedupedIds provided)
+  const fileAppts = dedupedIds
+    ? f.appointments.filter(a=>{
+        const patId=a.type==='appointment'?(a.patientCode||stripSt(a.patientName)||''):(a.type);
+        return dedupedIds.has(`${a.type}|${a.date}|${a.startTime||''}|${patId}`);
+      })
+    : f.appointments;
   // Only count appointments (not lunch/absent rows)
-  const allAppts=f.appointments.filter(a=>a.type==='appointment');
+  const allAppts=fileAppts.filter(a=>a.type==='appointment');
   const ac=allAppts.length;
-  // Compute week stats - check if any appointment in this file has a status
+  // Compute week stats
   const anyHasStatus=allAppts.some(a=>a.status!=null||((a.patientName||'').match(/^\((F|NF|FJ)\)/i)));
   const wPresF=anyHasStatus?allAppts.filter(a=>a.status==='F'||(a.patientName||'').match(/^\(F\)/i)).length:ac;
   const wNF=allAppts.filter(a=>a.status==='NF'||(a.patientName||'').match(/^\(NF\)/i)).length;
   const wFJ=allAppts.filter(a=>a.status==='FJ'||(a.patientName||'').match(/^\(FJ\)/i)).length;
-  // Week revenue: only billable (F or all-null)
+  // Week revenue
   let wRev=0;
-  const pm=patMap(f.appointments);
+  const pm=patMap(fileAppts);
   for(const[k,p] of pm){
     const hasS=p.sessions.some(a=>a.status!=null);
     const bill=hasS?p.sessions.filter(a=>a.status==='F'):p.sessions;
@@ -885,7 +922,7 @@ function wBlock(f){
   }
   const chips=f.days.map(d=>`<span class="dchip">${d.name.slice(0,3)} ${d.date.slice(8)}</span>`).join(' ');
   const body=f.days.map(day=>{
-    const da=f.appointments.filter(a=>a.date===day.date&&a.type!=='blocked'); if(!da.length) return'';
+    const da=fileAppts.filter(a=>a.date===day.date&&a.type!=='blocked'); if(!da.length) return'';
     const at=da.filter(a=>a.type==='appointment'&&(a.status==='F'||a.status==null));
     const ab=da.filter(a=>a.type==='appointment'&&(a.status==='NF'||a.status==='FJ'));
     const rows=da.map(a=>{
