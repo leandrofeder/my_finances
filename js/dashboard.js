@@ -49,7 +49,7 @@ function renderConfToggle() {
         </button>
         <button class="conf-pill${isResponded ? ' conf-pill-on conf-pill-on-resp' : ''}" onclick="setConfFilter('responded')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>
-          Só respondidos
+          Sem pendentes
         </button>
       </div>
     </div>`;
@@ -69,7 +69,10 @@ function renderDash() {
   };
 
   const cards = [
-    { l: 'Atendimentos', v: String(st.total),   c: 'var(--accent)',  i: 'chk', money: false },
+    { l: 'Atendimentos', v: String(st.total),
+      sub: withConf && st.pending > 0 && S.confFilter === 'all'
+        ? `${st.total - st.pending} validado(s) + ${st.pending} pend.` : null,
+      c: 'var(--accent)',  i: 'chk', money: false },
     { l: 'Faturamento',  v: st.revenue,          c: 'var(--green)',   i: 'dol', money: true  },
     { l: 'Pacientes',    v: String(st.patients), c: 'var(--violet)',  i: 'usr', money: false },
     { l: 'Ausências',    v: String(st.absent),   c: 'var(--amber)',   i: 'alt', money: false },
@@ -124,6 +127,7 @@ function renderDash() {
         <div class="sc" style="border-left-color:${c.c}">
           <div class="sl" style="color:${c.c}">${c.l} <span>${icons[c.i]}</span></div>
           <div class="sv">${c.money ? moneyEl(c.v) : c.v}</div>
+          ${c.sub  ? `<div class="ss">${c.sub}</div>`  : ''}
           ${c.hint ? `<div class="ss">${c.hint}</div>` : ''}
         </div>`).join('')}
     </div>
