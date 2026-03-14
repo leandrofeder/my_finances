@@ -8,7 +8,8 @@ let S = {
   search: '',
   hiddenPatients: [],
   patSort: { col: 'revenue', dir: 'desc' },
-  hideValues: false
+  hideValues: false,
+  confFilter: 'all'   // 'all' | 'responded'
 };
 
 let chart = null;

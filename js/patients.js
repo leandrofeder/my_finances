@@ -17,11 +17,11 @@ function renderPatients() {
   const mult = dir === 'asc' ? 1 : -1;
   vis = [...vis].sort((a, b) => {
     let av, bv;
-    if (col === 'name')     { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); return mult * (av < bv ? -1 : av > bv ? 1 : 0); }
-    if (col === 'presF')    { av = a.presF;       bv = b.presF;       }
-    else if (col === 'progress') { av = a.curSession || 0; bv = b.curSession || 0; }
-    else if (col === 'price')    { av = a.price;        bv = b.price;        }
-    else if (col === 'revenue')  { av = a.revenue;      bv = b.revenue;      }
+    if (col === 'name')          { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); return mult * (av < bv ? -1 : av > bv ? 1 : 0); }
+    if (col === 'presF')         { av = a.presF;              bv = b.presF;              }
+    else if (col === 'progress') { av = a.curSession || 0;    bv = b.curSession || 0;    }
+    else if (col === 'price')    { av = a.price;              bv = b.price;              }
+    else if (col === 'revenue')  { av = a.revenue;            bv = b.revenue;            }
     else if (col === 'lastDate') { av = a.lastDate || ''; bv = b.lastDate || ''; return mult * (av < bv ? -1 : av > bv ? 1 : 0); }
     else { av = a.count; bv = b.count; }
     return mult * (av - bv);
@@ -30,13 +30,18 @@ function renderPatients() {
   const rows = vis.map(p => {
     const hc      = !!S.prices.patients[p.key];
     const safeKey = ea(p.key);
+    const showPend = p.pendingCount > 0 && S.confFilter === 'all';
     const statusBadge = p.hasAnyStatus
       ? `<div class="pa-counts">
           ${p.presF > 0 ? `<span class="pa-badge pa-p">✓ ${p.presF}</span>` : ''}
           ${p.absNF > 0 ? `<span class="pa-badge pa-a">✗ ${p.absNF}</span>` : ''}
           ${p.absFJ > 0 ? `<span class="pa-badge pa-fj">⚡ ${p.absFJ}</span>` : ''}
+          ${showPend ? `<span class="pa-badge pa-pending">◌ ${p.pendingCount}</span>` : ''}
         </div>`
-      : `<span style="color:var(--muted);font-size:12px">${p.count} sessão${p.count !== 1 ? 'ões' : 'ão'}</span>`;
+      : `<div class="pa-counts">
+          <span style="color:var(--muted);font-size:12px">${p.count} sessão${p.count !== 1 ? 'ões' : 'ão'}</span>
+          ${showPend ? `<span class="pa-badge pa-pending">◌ ${p.pendingCount} pend.</span>` : ''}
+        </div>`;
 
     const hasSessions = p.sessions && p.sessions.length > 0;
 
@@ -51,7 +56,8 @@ function renderPatients() {
            <div class="pw"><div class="pb" style="width:${Math.min(100, p.curSession / p.totalSess * 100)}%"></div></div>`
         : '<span style="color:var(--border)">—</span>'}</td>
       <td>
-        <div class="pcell">          <div class="pdisplay" id="pd_${safeKey}" onclick="showPE('${safeKey}')">
+        <div class="pcell">
+          <div class="pdisplay" id="pd_${safeKey}" onclick="showPE('${safeKey}')">
             <span class="amt">${moneyEl(p.price)}</span>
             ${hc ? '<span class="cbadge">custom</span>' : ''}
             <span class="ehint">
@@ -88,12 +94,31 @@ function renderPatients() {
       <td colspan="7">
         <div class="sh-inner">
           ${(p.sessions || []).map(s => {
-            const sc = s.status === 'F' ? 'sf sf-f' : s.status === 'NF' ? 'sf sf-nf' : s.status === 'FJ' ? 'sf sf-fj' : 'sf sf-null';
-            const sl = s.status === 'F' ? 'F'       : s.status === 'NF' ? 'NF'       : s.status === 'FJ' ? 'FJ'       : '—';
+            const pending = isPending(s);
+            const sc = pending      ? 'sf sf-pending'
+              : s.status === 'F'    ? 'sf sf-f'
+              : s.status === 'NF'   ? 'sf sf-nf'
+              : s.status === 'FJ'   ? 'sf sf-fj'
+              : 'sf sf-null';
+            const sl = pending      ? 'pend.'
+              : s.status === 'F'    ? 'F'
+              : s.status === 'NF'   ? 'NF'
+              : s.status === 'FJ'   ? 'FJ'
+              : '—';
+
+            const confTag = s.confirmation !== undefined
+              ? s.confirmation === 'V'
+                ? `<span class="conf-badge conf-v" title="Confirmado">✓</span>`
+                : s.confirmation === 'X'
+                  ? `<span class="conf-badge conf-x" title="Cancelado">✗</span>`
+                  : `<span class="conf-badge conf-none" title="Sem resposta">—</span>`
+              : '';
+
             return `<div class="sh-item">
               <span class="sh-date">${fDate(s.date)}</span>
               ${s.startTime ? `<span class="sh-time">${s.startTime}${s.endTime ? ' – ' + s.endTime : ''}</span>` : ''}
               <span class="${sc}">${sl}</span>
+              ${confTag}
             </div>`;
           }).join('')}
         </div>
@@ -104,9 +129,10 @@ function renderPatients() {
   const hidCount = S.hiddenPatients.length;
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap">
       <div class="pt">Pacientes <span style="font-size:14px;font-weight:400;color:var(--muted)">(${pl.length})</span></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${renderConfToggle()}
         <div class="sbar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="si" placeholder="Buscar por nome ou código…" value="${esc(S.search)}" oninput="doSearch(this.value)">
@@ -123,15 +149,23 @@ function renderPatients() {
       <div class="ri"><div class="rl">Presenças</div><div class="rv" style="color:#22C55E">${st.total}</div></div>
       <div class="rdiv"></div>
       <div class="ri"><div class="rl">Ausências</div><div class="rv" style="color:#F59E0B">${st.absent}</div></div>
+      ${st.pending > 0 && S.confFilter === 'all' ? `<div class="rdiv"></div>
+      <div class="ri"><div class="rl">Pendentes</div><div class="rv" style="color:var(--sub)">${st.pending}</div></div>` : ''}
       <div class="rsp"></div>
       <div style="font-size:11px;color:var(--muted)">Padrão: <strong style="color:var(--green)">${moneyEl(S.prices.default)}</strong>
         <button onclick="setTab('settings')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;margin-left:4px;font-family:var(--font)">alterar</button>
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-p">✓ N</span> Presenças (F) — faturadas</div>
+      <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-p">✓ N</span> Presenças (F)</div>
       <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-a">✗ N</span> Ausências (NF)</div>
-      <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-fj">⚡ N</span> Falta justificada (FJ)</div>
+      <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-fj">⚡ N</span> FJ</div>
+      <div style="display:flex;align-items:center;gap:5px"><span class="pa-badge pa-pending">◌ N</span> Pendente</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:4px;padding-left:8px;border-left:1px solid var(--border)">
+        <span class="conf-badge conf-v">✓</span> Confirmado
+        <span class="conf-badge conf-x">✗</span> Cancelado
+        <span class="conf-badge conf-none">—</span> Sem resp.
+      </div>
     </div>
     <div class="tw"><table>
       <thead><tr>

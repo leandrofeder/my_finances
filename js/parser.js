@@ -2,7 +2,7 @@
 const DN = { seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta', sex: 'Sexta', sab: 'Sábado', dom: 'Domingo' };
 
 /* Nomes/padrões que devem ser ignorados (não são pacientes) */
-const NON_PATIENT = /^(ausente|bloqueio de agenda|almo[çc]o|natal|ano novo|feriado|recesso|folga|férias|ferias)$/i;
+const NON_PATIENT = /^(ausente|bloqueio de agenda|almo[çc]o|natal|intervalo|ano novo|feriado|recesso|folga|férias|ferias)$/i;
 function isNonPatient(name) { return !name || NON_PATIENT.test(name.trim()); }
 
 /* ─── Utilitário: parse CSV linha a linha (respeita aspas) ─── */
@@ -25,7 +25,6 @@ function parseCSVLine(line) {
 }
 
 /* ─── Extrai intervalo de datas do nome do arquivo ─── */
-// Suporta: agenda_DD-MM-YYYY_a_DD-MM-YYYY.csv  e  YYYY-MM-DD_...csv
 function fileDateRange(filename) {
   // Padrão principal: agenda_23-02-2026_a_27-02-2026.csv
   const mRange = filename.match(/(\d{2})-(\d{2})-(\d{4})_a_(\d{2})-(\d{2})-(\d{4})/);
@@ -52,14 +51,31 @@ function fileYear(filename) {
   return fileDateRange(filename).year;
 }
 
-/* ─── Converte "seg 2/3" → { abbr, name, date } ─── */
+/* ─── Converte célula de data → { abbr, name, date }
+   Suporta dois formatos:
+   - Novo:    "09-03-2026"  (DD-MM-YYYY)
+   - Legado:  "seg 2/3"
+─── */
 function parseDayCell(cell, year) {
-  const m = cell.trim().match(/^(\w{2,3})\s+(\d{1,2})\/(\d{1,2})/);
-  if (!m) return null;
+  const trimmed = cell.trim();
+
+  // Novo formato: "09-03-2026" (DD-MM-YYYY)
+  const mFull = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (mFull) {
+    const date = `${mFull[3]}-${mFull[2]}-${mFull[1]}`;
+    const dayObj = new Date(date + 'T12:00');
+    const abbrs = ['dom','seg','ter','qua','qui','sex','sab'];
+    const abbr  = abbrs[dayObj.getDay()];
+    return { abbr, name: DN[abbr] || abbr, date };
+  }
+
+  // Formato legado: "seg 2/3"
+  const mLeg = trimmed.match(/^(\w{2,3})\s+(\d{1,2})\/(\d{1,2})/);
+  if (!mLeg) return null;
   return {
-    abbr: m[1],
-    name: DN[m[1].toLowerCase()] || m[1],
-    date: `${year}-${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}`
+    abbr: mLeg[1],
+    name: DN[mLeg[1].toLowerCase()] || mLeg[1],
+    date: `${year}-${mLeg[3].padStart(2, '0')}-${mLeg[2].padStart(2, '0')}`
   };
 }
 
@@ -69,8 +85,16 @@ function parseCSV(content, filename) {
   const year  = range.year;
   const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
 
-  // Pula cabeçalho
-  const dataLines = lines[0].toLowerCase().startsWith('data') ? lines.slice(1) : lines;
+  // Detecta cabeçalho e verifica se tem coluna Presença
+  const hasHeader = lines[0]?.toLowerCase().startsWith('data');
+  const headerLine = hasHeader ? lines[0].toLowerCase() : '';
+  const hasConfirmationCol = hasHeader && (
+    headerLine.includes('presença') ||
+    headerLine.includes('presenca') ||
+    parseCSVLine(lines[0]).length >= 8
+  );
+
+  const dataLines = hasHeader ? lines.slice(1) : lines;
 
   const appts = [];
   const daysSet = new Map(); // date → day info
@@ -80,7 +104,9 @@ function parseCSV(content, filename) {
     const cols = parseCSVLine(line);
     if (cols.length < 5) continue;
 
-    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao] = cols.map(c => c.trim());    // Ignora entradas que não são pacientes (Ausente, Bloqueio, Natal, Ano Novo…)
+    const [rawData, rawStart, rawEnd, rawTipo, rawPaciente, rawMatricula, rawSessao, rawPresenca] = cols.map(c => c.trim());
+
+    // Ignora entradas que não são pacientes
     if (isNonPatient(rawPaciente)) continue;
 
     const dayInfo = parseDayCell(rawData, year);
@@ -88,7 +114,7 @@ function parseCSV(content, filename) {
 
     if (!daysSet.has(dayInfo.date)) daysSet.set(dayInfo.date, dayInfo);
 
-    const tipo   = rawTipo.toUpperCase();   // F | NF | FJ | ""
+    const tipo   = rawTipo.toUpperCase();
     const status = (tipo === 'F' || tipo === 'NF' || tipo === 'FJ') ? tipo : null;
 
     // Sessão: "24/35" → sessionNumber=24, totalSessions=35
@@ -96,6 +122,13 @@ function parseCSV(content, filename) {
     if (rawSessao) {
       const sm = rawSessao.match(/^(\d+)\/(\d+)$/);
       if (sm) { sessionNumber = parseInt(sm[1]); totalSessions = parseInt(sm[2]); }
+    }
+
+    // Confirmação: 'V' (Confirmado), 'X' (Cancelado), null (sem resposta), undefined (coluna ausente/formato antigo)
+    let confirmation = undefined;
+    if (hasConfirmationCol || cols.length >= 8) {
+      const pRaw = (rawPresenca || '').trim().toLowerCase();
+      confirmation = pRaw === 'confirmado' ? 'V' : pRaw === 'cancelado' ? 'X' : null;
     }
 
     const id = `${dayInfo.date}-ap-${rawStart}`;
@@ -110,7 +143,8 @@ function parseCSV(content, filename) {
       patientCode:  rawMatricula || null,
       sessionNumber,
       totalSessions,
-      status
+      status,
+      confirmation
     });
   }
 
@@ -165,7 +199,8 @@ function parseTXT(content, filename) {
     const d = days[di]; if (!d) return;
     const bl = block.filter(l => l); let i = 0;
     while (i < bl.length) {
-      const ln = bl[i];      if (isNonPatient(ln)) { i++; continue; }
+      const ln = bl[i];
+      if (isNonPatient(ln)) { i++; continue; }
       const tm = ln.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
       if (tm) {
         const [, st, et] = tm; i++;
@@ -183,7 +218,8 @@ function parseTXT(content, filename) {
           patientName: rawName, patientCode: cm ? cm[2] : null,
           sessionNumber: cm && cm[3] ? parseInt(cm[3]) : null,
           totalSessions: cm && cm[4] ? parseInt(cm[4]) : null,
-          status: appStatus
+          status: appStatus,
+          confirmation: undefined  // formato legado sem coluna de confirmação
         });
         i++; continue;
       }

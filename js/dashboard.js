@@ -1,4 +1,4 @@
-﻿/* DASHBOARD */
+/* DASHBOARD */
 
 /* ── Ocultar/mostrar valores monetários ── */
 function toggleHideValues() {
@@ -25,23 +25,66 @@ function moneyEl(value) {
   return `<span data-money="${formatted}">${S.hideValues ? '•••••' : formatted}</span>`;
 }
 
+/* ── Toggle de filtro de confirmação ── */
+function setConfFilter(val) {
+  S.confFilter = val;
+  renderMain();
+}
+
+/* ── Renderização do toggle (só aparece quando há dados com coluna Presença) ── */
+function renderConfToggle() {
+  if (!hasConfirmationData()) return '';
+  const pendingTotal = countPendingInPeriod();
+  const isAll       = S.confFilter === 'all';
+  const isResponded = S.confFilter === 'responded';
+
+  return `
+    <div class="conf-toggle" id="confToggle">
+      <span class="conf-toggle-label">Visualizar:</span>
+      <div class="conf-toggle-pills">
+        <button class="conf-pill${isAll ? ' conf-pill-on' : ''}" onclick="setConfFilter('all')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="11" height="11"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Todos
+          ${pendingTotal > 0 && isAll ? `<span class="conf-pill-badge">${pendingTotal} pend.</span>` : ''}
+        </button>
+        <button class="conf-pill${isResponded ? ' conf-pill-on conf-pill-on-resp' : ''}" onclick="setConfFilter('responded')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>
+          Só respondidos
+        </button>
+      </div>
+    </div>`;
+}
+
 /* ── Renderização principal ── */
 function renderDash() {
   const ap = filtA(), st = stats(ap), pl = patList(ap), cd = chartD(ap);
+  const withConf = hasConfirmationData();
 
   const icons = {
-    chk: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
-    dol: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>`,
-    usr: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`,
-    alt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    chk:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    dol:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>`,
+    usr:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`,
+    alt:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
   };
 
   const cards = [
-    { l: 'Atendimentos', v: String(st.total),   c: 'var(--accent)', i: 'chk', money: false },
-    { l: 'Faturamento',  v: st.revenue,          c: 'var(--green)',  i: 'dol', money: true  },
-    { l: 'Pacientes',    v: String(st.patients), c: 'var(--violet)', i: 'usr', money: false },
-    { l: 'Ausências',    v: String(st.absent),   c: 'var(--amber)',  i: 'alt', money: false },
+    { l: 'Atendimentos', v: String(st.total),   c: 'var(--accent)',  i: 'chk', money: false },
+    { l: 'Faturamento',  v: st.revenue,          c: 'var(--green)',   i: 'dol', money: true  },
+    { l: 'Pacientes',    v: String(st.patients), c: 'var(--violet)',  i: 'usr', money: false },
+    { l: 'Ausências',    v: String(st.absent),   c: 'var(--amber)',   i: 'alt', money: false },
   ];
+
+  // Card de pendentes: só aparece quando há dados com confirmação E existem pendentes E estamos no modo 'all'
+  const showPending = withConf && st.pending > 0 && S.confFilter === 'all';
+  if (showPending) {
+    cards.push({
+      l: 'Pendentes', v: String(st.pending), c: 'var(--sub)', i: 'clock', money: false,
+      hint: 'Sem validação da recepcionista'
+    });
+  }
+
+  const gridCols = cards.length; // 4 ou 5
 
   const top = pl.slice(0, 6).map(p => `
     <div class="tp">
@@ -55,6 +98,7 @@ function renderDash() {
                ${p.absFJ > 0 ? `<span class="pa-badge pa-fj">⚡ ${p.absFJ}</span>` : ''}`
             : `<span style="color:var(--muted)">${p.count} sessão${p.count !== 1 ? 'ões' : 'ão'}</span>`
           }
+          ${p.pendingCount > 0 && S.confFilter === 'all' ? `<span class="pa-badge pa-pending">◌ ${p.pendingCount} pend.</span>` : ''}
           ${p.curSession && p.totalSess ? `<span style="color:var(--muted)">· ${p.curSession}/${p.totalSess}</span>` : ''}
         </div>
       </div>
@@ -64,23 +108,30 @@ function renderDash() {
       <div class="tpr">
         <div class="tprv">${moneyEl(p.revenue)}</div>
         <div class="tpp">${moneyEl(p.price)}/sessão</div>
-      </div>    </div>`).join('');
+      </div>
+    </div>`).join('');
 
   return `
-    <div class="ph">
-      <div class="pt">Dashboard</div>
-      <div class="ps">${descRange()}</div>
+    <div class="ph" style="align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="pt">Dashboard</div>
+        <div class="ps">${descRange()}</div>
+      </div>
+      ${renderConfToggle()}
     </div>
-    <div class="sgrid">${cards.map(c => `
-      <div class="sc" style="border-left-color:${c.c}">
-        <div class="sl" style="color:${c.c}">${c.l} <span>${icons[c.i]}</span></div>
-        <div class="sv">${c.money ? moneyEl(c.v) : c.v}</div>
-      </div>`).join('')}
+    <div class="sgrid" style="grid-template-columns:repeat(${gridCols},1fr)">
+      ${cards.map(c => `
+        <div class="sc" style="border-left-color:${c.c}">
+          <div class="sl" style="color:${c.c}">${c.l} <span>${icons[c.i]}</span></div>
+          <div class="sv">${c.money ? moneyEl(c.v) : c.v}</div>
+          ${c.hint ? `<div class="ss">${c.hint}</div>` : ''}
+        </div>`).join('')}
     </div>
     ${cd.length ? `<div class="card"><div class="ct">Atendimentos por dia</div><div id="chartWrap"><canvas id="myChart"></canvas></div></div>` : ''}
     <div class="card">
       <div class="ct">Top pacientes no período</div>
-      ${top || '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum atendimento no período</div>'}      ${pl.length > 6 ? `<button class="bmore" onclick="setTab('patients')">Ver todos os ${pl.length} pacientes →</button>` : ''}
+      ${top || '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum atendimento no período</div>'}
+      ${pl.length > 6 ? `<button class="bmore" onclick="setTab('patients')">Ver todos os ${pl.length} pacientes →</button>` : ''}
     </div>`;
 }
 
@@ -96,14 +147,13 @@ function renderInsightsTab() {
 
 function renderInsights(cancelPat, cancelWeek, attWeek, periods, st) {
   const header = `
-    <div class="ph">
-      <div class="pt">Insights</div>
-      <div class="ps">${descRange()}</div>
+    <div class="ph" style="align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div><div class="pt">Insights</div><div class="ps">${descRange()}</div></div>
+      ${renderConfToggle()}
     </div>`;
 
   if (st.total === 0) return header + `<div style="color:var(--muted);font-size:13px;text-align:center;padding:40px">Nenhum dado no período</div>`;
 
-  /* Pacientes que mais cancelam */
   const topCancelers = cancelPat.slice(0, 5);
   const cancelPatHtml = topCancelers.length ? `
     <div class="ins-card">
@@ -127,7 +177,6 @@ function renderInsights(cancelPat, cancelWeek, attWeek, periods, st) {
       }).join('')}
     </div>` : '';
 
-  /* Cancelamentos por dia da semana */
   const maxCancel = Math.max(...cancelWeek.map(d => d.cancel), 1);
   const cancelWeekHtml = cancelWeek.some(d => d.cancel > 0) ? `
     <div class="ins-card">
@@ -146,7 +195,6 @@ function renderInsights(cancelPat, cancelWeek, attWeek, periods, st) {
       }).join('')}
     </div>` : '';
 
-  /* Dias com mais atendimentos */
   const maxAtt = Math.max(...attWeek.map(d => d.count), 1);
   const attWeekHtml = attWeek.length ? `
     <div class="ins-card">
@@ -163,7 +211,7 @@ function renderInsights(cancelPat, cancelWeek, attWeek, periods, st) {
         </div>`;
       }).join('')}
     </div>` : '';
-  /* Períodos do dia */
+
   const periodIcons = { manha: '🌤', tarde: '🌅', noite: '🌙' };
   const maxPeriod = Math.max(...periods.map(p => Math.max(p.att, p.cancel)), 1);
   const periodsHtml = periods.length ? `
@@ -190,15 +238,11 @@ function renderInsights(cancelPat, cancelWeek, attWeek, periods, st) {
         </div>`;
       }).join('')}
     </div>` : '';
-  if (!cancelPatHtml && !cancelWeekHtml && !attWeekHtml && !periodsHtml) return header + `<div style="color:var(--muted);font-size:13px;text-align:center;padding:40px">Sem dados suficientes para insights</div>`;
 
-  return header + `
-    <div class="ins-grid">
-      ${cancelPatHtml}
-      ${cancelWeekHtml}
-      ${attWeekHtml}
-      ${periodsHtml}
-    </div>`;
+  if (!cancelPatHtml && !cancelWeekHtml && !attWeekHtml && !periodsHtml)
+    return header + `<div style="color:var(--muted);font-size:13px;text-align:center;padding:40px">Sem dados suficientes para insights</div>`;
+
+  return header + `<div class="ins-grid">${cancelPatHtml}${cancelWeekHtml}${attWeekHtml}${periodsHtml}</div>`;
 }
 
 /* ── Gráfico de barras ── */
@@ -238,4 +282,3 @@ function setupChart() {
     }
   });
 }
-

@@ -6,9 +6,15 @@ document.getElementById('fi').addEventListener('change', async function () {
   this.value = '';
 });
 
-// Input: histórico consolidado
+// Input: histórico consolidado de atendimentos
 document.getElementById('fi-history').addEventListener('change', async function () {
   if (this.files.length) await importHistory(this.files[0]);
+  this.value = '';
+});
+
+// Input: arquivo de valores dos pacientes
+document.getElementById('fi-prices').addEventListener('change', async function () {
+  if (this.files.length) await importPrices(this.files[0]);
   this.value = '';
 });
 
@@ -22,17 +28,20 @@ async function handleF(fl) {
 
     const text = await f.text();
 
-    // Se for o histórico consolidado, redireciona
-    if (name.endsWith('.csv') && text.trimStart().startsWith('##AGENDAHUB_HISTORY_V1')) {
-      await importHistory(f);
-      continue;
+    // Redireciona para o handler correto se for arquivo interno do AgendaHub
+    if (name.endsWith('.csv')) {
+      const firstLine = text.trimStart().split('\n')[0].trim();
+      if (firstLine.startsWith('##AGENDAHUB_HISTORY')) { await importHistory(f); continue; }
+      if (firstLine.startsWith('##AGENDAHUB_PRICES'))  { await importPrices(f);  continue; }
     }
 
     const p = parse(text, f.name);
 
     // Duplicata por nome
     const byName = S.files.findIndex(x => x.filename === p.filename);
-    if (byName >= 0) { S.files[byName] = p; continue; }    // Duplicata por semana (fileDate / fileEndDate — intervalo da semana)
+    if (byName >= 0) { S.files[byName] = p; continue; }
+
+    // Duplicata por semana
     if (p.fileDate) {
       const byDate = S.files.findIndex(x => x.fileDate === p.fileDate);
       if (byDate >= 0) {
@@ -53,8 +62,7 @@ async function handleF(fl) {
   if (skipped.length) showList(
     'Arquivos ignorados',
     'Os seguintes arquivos não foram importados pois a semana já existe:',
-    skipped,
-    'warning'
+    skipped, 'warning'
   );
 
   if (!S.dateFrom && !S.dateTo) {
@@ -67,17 +75,10 @@ async function handleF(fl) {
     }
   }
 
-  if (newFiles.length || skipped.length === 0) {
-    saveF();
-    renderDRB();
-    renderSBFiles();
-    renderMain();
-  } else {
-    saveF();
-    renderDRB();
-    renderSBFiles();
-    renderMain();
-  }
+  saveF();
+  renderDRB();
+  renderSBFiles();
+  renderMain();
 }
 
 function delFile(fn) {
